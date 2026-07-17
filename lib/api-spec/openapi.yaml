@@ -3,20 +3,36 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: VibeStadium API specification
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: zones
+    description: Stadium zone data and crowd density
+  - name: route
+    description: Pathfinding and navigation
+  - name: bins
+    description: Waste bin reporting and management
+  - name: rewards
+    description: Fan rewards and credits wallet
+  - name: transit
+    description: Last-mile transit and exit routing
+  - name: narrate
+    description: AI narration and assistant
+  - name: stats
+    description: Stadium-wide dashboard stats
+  - name: ops
+    description: Ops console overrides
+
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,6 +40,437 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /zones:
+    get:
+      operationId: getZones
+      tags: [zones]
+      summary: List all stadium zones with live density
+      responses:
+        "200":
+          description: All zones
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Zone"
+
+  /zones/{zoneId}:
+    get:
+      operationId: getZone
+      tags: [zones]
+      summary: Get a single zone by ID
+      parameters:
+        - name: zoneId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Zone details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Zone"
+        "404":
+          description: Zone not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /zones/{zoneId}/capacity:
+    patch:
+      operationId: overrideZoneCapacity
+      tags: [ops]
+      summary: Override zone capacity (Ops Console)
+      parameters:
+        - name: zoneId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CapacityOverride"
+      responses:
+        "200":
+          description: Updated zone
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Zone"
+        "404":
+          description: Zone not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /route:
+    get:
+      operationId: getRoute
+      tags: [route]
+      summary: Compute a pathfinding route between zones
+      parameters:
+        - name: from
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Origin zone ID
+        - name: to
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Destination zone ID
+        - name: stepFreeOnly
+          in: query
+          required: false
+          schema:
+            type: boolean
+          description: Filter to step-free edges only
+      responses:
+        "200":
+          description: Computed route
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RouteResult"
+        "400":
+          description: Invalid zone IDs or no route found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /bins:
+    get:
+      operationId: getBins
+      tags: [bins]
+      summary: List all waste bins with fill levels
+      responses:
+        "200":
+          description: All bins
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Bin"
+
+  /bins/{binId}/report:
+    post:
+      operationId: reportBin
+      tags: [bins]
+      summary: Report a bin as full
+      parameters:
+        - name: binId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BinReport"
+      responses:
+        "200":
+          description: Bin reported, credits awarded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BinReportResult"
+        "404":
+          description: Bin not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /rewards:
+    get:
+      operationId: getRewards
+      tags: [rewards]
+      summary: Get fan rewards wallet and transaction ledger
+      parameters:
+        - name: userId
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Rewards wallet
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RewardsWallet"
+
+  /rewards/claim:
+    post:
+      operationId: claimReward
+      tags: [rewards]
+      summary: Claim a reward using credits
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RewardClaim"
+      responses:
+        "200":
+          description: Reward claimed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RewardsWallet"
+        "400":
+          description: Insufficient credits or invalid reward
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /transit:
+    get:
+      operationId: getTransit
+      tags: [transit]
+      summary: Get last-mile transit options and estimated wait times
+      responses:
+        "200":
+          description: Transit options
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TransitInfo"
+
+  /transit/exit-plan:
+    get:
+      operationId: getExitPlan
+      tags: [transit]
+      summary: Get staggered post-match exit plan by seating block
+      responses:
+        "200":
+          description: Exit plan by block
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ExitSlot"
+
+  /narrate:
+    post:
+      operationId: narrateRoute
+      tags: [narrate]
+      summary: Get AI narration for a route or zone query
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NarrateInput"
+      responses:
+        "200":
+          description: AI narration response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NarrateResult"
+
+  /stats:
+    get:
+      operationId: getStats
+      tags: [stats]
+      summary: Get stadium-wide operational KPI summary
+      responses:
+        "200":
+          description: Dashboard stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StadiumStats"
+
+  /stats/alerts:
+    get:
+      operationId: getAlerts
+      tags: [stats]
+      summary: Get active pre-emptive crowd alerts
+      responses:
+        "200":
+          description: Current alerts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CrowdAlert"
+
+  /stats/density-history:
+    get:
+      operationId: getDensityHistory
+      tags: [stats]
+      summary: Get zone density history for trend charts (ops view)
+      parameters:
+        - name: zoneId
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Density history samples
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DensitySample"
+
+  /auth/register:
+    post:
+      operationId: registerUser
+      tags: [auth]
+      summary: Register a new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterInput"
+      responses:
+        "200":
+          description: User registered successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "400":
+          description: Email already exists or invalid data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/login:
+    post:
+      operationId: loginUser
+      tags: [auth]
+      summary: Log in a user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginInput"
+      responses:
+        "200":
+          description: Logged in successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "401":
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/me:
+    get:
+      operationId: getMe
+      tags: [auth]
+      summary: Get the current authenticated user profile
+      responses:
+        "200":
+          description: Current user profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /users/{userId}:
+    get:
+      operationId: getUserProfile
+      tags: [users]
+      summary: Get a user's public profile
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: User public profile details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserPublicProfile"
+        "404":
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    patch:
+      operationId: updateUserProfile
+      tags: [users]
+      summary: Update the authenticated user's profile details
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateProfileInput"
+      responses:
+        "200":
+          description: Profile updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden (cannot edit other users)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
 components:
   schemas:
     HealthStatus:
@@ -33,4 +480,531 @@ components:
           type: string
       required:
         - status
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error
+
+    ZoneConnection:
+      type: object
+      properties:
+        toZoneId:
+          type: string
+        distanceMeters:
+          type: number
+        hasStairs:
+          type: boolean
+        hasElevator:
+          type: boolean
+      required:
+        - toZoneId
+        - distanceMeters
+        - hasStairs
+        - hasElevator
+
+    ZoneAccessibility:
+      type: object
+      properties:
+        stepFree:
+          type: boolean
+        elevatorNearby:
+          type: boolean
+      required:
+        - stepFree
+        - elevatorNearby
+
+    Zone:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        type:
+          type: string
+          enum: [gate, concourse, seating, amenity, medical, transit]
+        capacityMax:
+          type: integer
+        capacityCurrent:
+          type: number
+          description: 0-100 occupancy percentage
+        coordinates:
+          type: array
+          items:
+            type: number
+          minItems: 2
+          maxItems: 2
+        connections:
+          type: array
+          items:
+            $ref: "#/components/schemas/ZoneConnection"
+        accessibility:
+          $ref: "#/components/schemas/ZoneAccessibility"
+        trendingDirection:
+          type: string
+          enum: [rising, falling, stable]
+        predictedPct:
+          type: ["number", "null"]
+          description: Predicted capacity in ~6 minutes
+      required:
+        - id
+        - name
+        - type
+        - capacityMax
+        - capacityCurrent
+        - coordinates
+        - connections
+        - accessibility
+        - trendingDirection
+
+    RouteStep:
+      type: object
+      properties:
+        zoneId:
+          type: string
+        zoneName:
+          type: string
+        instruction:
+          type: string
+        distanceMeters:
+          type: number
+        isElevator:
+          type: boolean
+      required:
+        - zoneId
+        - zoneName
+        - instruction
+        - distanceMeters
+        - isElevator
+
+    RouteResult:
+      type: object
+      properties:
+        fromZoneId:
+          type: string
+        toZoneId:
+          type: string
+        steps:
+          type: array
+          items:
+            $ref: "#/components/schemas/RouteStep"
+        totalDistanceMeters:
+          type: number
+        estimatedMinutes:
+          type: number
+        stepFreeOnly:
+          type: boolean
+        narration:
+          type: ["string", "null"]
+      required:
+        - fromZoneId
+        - toZoneId
+        - steps
+        - totalDistanceMeters
+        - estimatedMinutes
+        - stepFreeOnly
+
+    Bin:
+      type: object
+      properties:
+        id:
+          type: string
+        zoneId:
+          type: string
+        zoneName:
+          type: string
+        capacityPct:
+          type: number
+        lastEmptiedAt:
+          type: string
+        reportCount:
+          type: integer
+        predictedOverflow:
+          type: boolean
+      required:
+        - id
+        - zoneId
+        - zoneName
+        - capacityPct
+        - lastEmptiedAt
+        - reportCount
+        - predictedOverflow
+
+    BinReport:
+      type: object
+      properties:
+        userId:
+          type: string
+      required: []
+
+    BinReportResult:
+      type: object
+      properties:
+        bin:
+          $ref: "#/components/schemas/Bin"
+        creditsAwarded:
+          type: integer
+        totalCredits:
+          type: integer
+      required:
+        - bin
+        - creditsAwarded
+        - totalCredits
+
+    RewardTransaction:
+      type: object
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+          enum: [earned, redeemed]
+        amount:
+          type: integer
+        description:
+          type: string
+        createdAt:
+          type: string
+      required:
+        - id
+        - type
+        - amount
+        - description
+        - createdAt
+
+    RewardOffer:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+        cost:
+          type: integer
+        category:
+          type: string
+          enum: [food, merch, upgrade, experience]
+      required:
+        - id
+        - title
+        - description
+        - cost
+        - category
+
+    RewardsWallet:
+      type: object
+      properties:
+        userId:
+          type: string
+        totalCredits:
+          type: integer
+        transactions:
+          type: array
+          items:
+            $ref: "#/components/schemas/RewardTransaction"
+        availableOffers:
+          type: array
+          items:
+            $ref: "#/components/schemas/RewardOffer"
+      required:
+        - userId
+        - totalCredits
+        - transactions
+        - availableOffers
+
+    RewardClaim:
+      type: object
+      properties:
+        rewardId:
+          type: string
+        userId:
+          type: string
+      required:
+        - rewardId
+
+    TransitOption:
+      type: object
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+          enum: [rideshare, bus, rail, walk]
+        label:
+          type: string
+        waitMinutes:
+          type: number
+        surgeMultiplier:
+          type: ["number", "null"]
+        nearestZoneId:
+          type: string
+        stepFree:
+          type: boolean
+      required:
+        - id
+        - type
+        - label
+        - waitMinutes
+        - nearestZoneId
+        - stepFree
+
+    TransitInfo:
+      type: object
+      properties:
+        options:
+          type: array
+          items:
+            $ref: "#/components/schemas/TransitOption"
+        lastUpdatedAt:
+          type: string
+      required:
+        - options
+        - lastUpdatedAt
+
+    ExitSlot:
+      type: object
+      properties:
+        block:
+          type: string
+        recommendedExitAt:
+          type: string
+        gateId:
+          type: string
+        gateName:
+          type: string
+        estimatedCrowdPct:
+          type: number
+      required:
+        - block
+        - recommendedExitAt
+        - gateId
+        - gateName
+        - estimatedCrowdPct
+
+    NarrateInput:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [route, zone, emergency, assistant]
+        query:
+          type: string
+        zoneId:
+          type: ["string", "null"]
+        routeContext:
+          type: ["string", "null"]
+          description: JSON-serialized route result for AI context
+        language:
+          type: string
+          default: en
+        tone:
+          type: string
+          enum: [neutral, reassuring, urgent]
+          default: neutral
+      required:
+        - type
+        - query
+
+    NarrateResult:
+      type: object
+      properties:
+        text:
+          type: string
+        urgencyLevel:
+          type: string
+          enum: [normal, elevated, emergency]
+        suggestedZoneId:
+          type: ["string", "null"]
+        actionLabel:
+          type: ["string", "null"]
+      required:
+        - text
+        - urgencyLevel
+
+    StadiumStats:
+      type: object
+      properties:
+        totalCapacityPct:
+          type: number
+        bottleneckZones:
+          type: integer
+        binsNearFull:
+          type: integer
+        activeAlerts:
+          type: integer
+        avgDwellTimeMinutes:
+          type: number
+        stepFreeAdoptionPct:
+          type: number
+        emergencyResponseTimeSec:
+          type: number
+        topBottleneck:
+          $ref: "#/components/schemas/Zone"
+      required:
+        - totalCapacityPct
+        - bottleneckZones
+        - binsNearFull
+        - activeAlerts
+        - avgDwellTimeMinutes
+        - stepFreeAdoptionPct
+        - emergencyResponseTimeSec
+
+    CrowdAlert:
+      type: object
+      properties:
+        id:
+          type: string
+        zoneId:
+          type: string
+        zoneName:
+          type: string
+        message:
+          type: string
+        severity:
+          type: string
+          enum: [info, warning, critical]
+        predictedPct:
+          type: number
+        predictedInMinutes:
+          type: number
+        createdAt:
+          type: string
+      required:
+        - id
+        - zoneId
+        - zoneName
+        - message
+        - severity
+        - predictedPct
+        - predictedInMinutes
+        - createdAt
+
+    DensitySample:
+      type: object
+      properties:
+        zoneId:
+          type: string
+        timestamp:
+          type: string
+        capacityPct:
+          type: number
+      required:
+        - zoneId
+        - timestamp
+        - capacityPct
+
+    CapacityOverride:
+      type: object
+      properties:
+        capacityCurrent:
+          type: number
+          minimum: 0
+          maximum: 100
+      required:
+        - capacityCurrent
+
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        email:
+          type: string
+        avatarUrl:
+          type: ["string", "null"]
+        bio:
+          type: ["string", "null"]
+        favoriteTeam:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+      required:
+        - id
+        - name
+        - email
+        - createdAt
+
+    UserPublicProfile:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        avatarUrl:
+          type: ["string", "null"]
+        bio:
+          type: ["string", "null"]
+        favoriteTeam:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+        credits:
+          type: integer
+        binsReported:
+          type: integer
+      required:
+        - id
+        - name
+        - createdAt
+        - credits
+        - binsReported
+
+    AuthResponse:
+      type: object
+      properties:
+        token:
+          type: string
+        user:
+          $ref: "#/components/schemas/User"
+      required:
+        - token
+        - user
+
+    LoginInput:
+      type: object
+      properties:
+        email:
+          type: string
+        password:
+          type: string
+      required:
+        - email
+        - password
+
+    RegisterInput:
+      type: object
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+        password:
+          type: string
+        favoriteTeam:
+          type: string
+      required:
+        - name
+        - email
+        - password
+
+    UpdateProfileInput:
+      type: object
+      properties:
+        name:
+          type: string
+        bio:
+          type: string
+        favoriteTeam:
+          type: string
+        avatarUrl:
+          type: string
 

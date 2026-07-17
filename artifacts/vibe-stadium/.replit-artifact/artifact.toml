@@ -1,0 +1,27 @@
+kind = "web"
+previewPath = "/"
+title = "VibeStadium"
+version = "1.0.0"
+id = "artifacts/vibe-stadium"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 24407
+
+[services.development]
+run = "pnpm --filter @workspace/vibe-stadium run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/vibe-stadium", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/vibe-stadium/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "24407"
+BASE_PATH = "/"

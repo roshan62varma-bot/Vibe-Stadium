@@ -1,0 +1,203 @@
+# VibeStadium — Next-Gen AI Fan Co-Pilot
+## Master Engineering, Architecture & Design Specification (v2.0 — Enhanced)
+
+> **Role:** Act as a Principal Full-Stack Engineer, Staff Product Designer, and AI Systems Architect. You are building a **production-grade, portfolio/competition-worthy** reference implementation — not a prototype. Every decision below should be defensible to a senior engineering review board.
+
+---
+
+## 0. Build Philosophy (read first)
+
+1. **Deterministic core, generative shell.** Pathfinding, capacity math, and rewards are computed by real algorithms. The GenAI layer *narrates and reasons over* that computed state — it never invents numbers. This keeps the app correct even when the AI provider is down, rate-limited, or absent.
+2. **Offline-capable by default.** Stadium Wi-Fi is unreliable. The app must degrade gracefully to a fully mocked, locally-simulated mode with zero network dependency, and upgrade transparently when a live AI/API connection exists.
+3. **Mobile-first, one-thumb operable.** Every primary action must be reachable in the bottom third of the screen on a 6.1" viewport.
+4. **Accessibility is a feature, not a checkbox.** Screen-reader flows, motor-impairment-friendly hit targets, and step-free routing are first-class product features, not an afterthought toggle.
+
+---
+
+## 1. Product Vision & Success Metrics
+
+**One-liner:** A real-time, AI-narrated stadium companion that turns crowd chaos into calm, confident movement.
+
+**North-star metrics to design toward (state these as in-app or dashboard KPIs, even if simulated):**
+- ⬇️ Average concourse dwell time in >80%-capacity zones
+- ⬇️ Time-to-resource for emergency/accessibility requests (target: <15s from query to map highlight)
+- ⬆️ % of overflowing bins reported and resolved before halftime surge
+- ⬆️ Step-free route adoption rate among users who enable the toggle
+
+**Primary personas:** general ticket-holder, parent/guardian, wheelchair/mobility-device user, non-English-speaking fan, stadium operations staff (via the Jury/Ops console).
+
+---
+
+## 2. Technology Stack (opinionated, production-grade)
+
+| Layer | Technology | Rationale |
+|---|---|---|
+| Framework | **Next.js 15 (App Router, React Server Components)** | Streaming SSR, edge-ready, best-in-class DX |
+| Language | **TypeScript, strict mode, `noUncheckedIndexedAccess`** | Type safety across the whole monorepo |
+| Styling | **Tailwind CSS + CSS custom-property design tokens** | Matches original dark-mode/emerald/crimson spec, themeable |
+| Component primitives | **shadcn/ui on Radix UI** | Accessible-by-default primitives, ownable code (not a black-box lib) |
+| Animation | **Framer Motion** | Micro-interactions, shared-layout transitions, `prefers-reduced-motion` aware |
+| Client state | **Zustand** (ephemeral/UI) + **TanStack Query** (server cache, background refetch) | Clear separation of UI vs. server state |
+| Map/grid rendering | **SVG for structure + Canvas (or `deck.gl`) for the live density heat-layer** | SVG stays crisp & accessible (focusable nodes); canvas handles high-frequency repaints |
+| Real-time transport | **WebSocket (Socket.IO) with SSE fallback** | Zone density pushes, AI banner streaming |
+| PWA / offline | **Workbox (`next-pwa`)**, IndexedDB cache of last-known zone graph | Works with zero connectivity |
+| i18n | **`next-intl`**, RTL-ready layout primitives | True multilingual support, not just the AI layer |
+| Voice | **Web Speech API** (recognition + synthesis), graceful no-op fallback | Hands-free assistant, audio wayfinding |
+| Backend runtime | **Node.js 22 + Fastify** (or NestJS if the team prefers DI-heavy structure) | Low overhead, schema-first (`@fastify/type-provider-zod`) |
+| API contract | **tRPC** for internal typed calls, **OpenAPI 3.1** for external/public endpoints | End-to-end type safety + external interoperability |
+| Database | **PostgreSQL + PostGIS** | Zones/gates are spatial entities; PostGIS gives real geo-queries |
+| ORM | **Prisma** | Migrations, type-safe queries |
+| Cache / pub-sub | **Redis** (Streams or Pub/Sub) | Fan-out zone-density events across horizontally scaled instances |
+| Background jobs | **BullMQ** | Bin-overflow prediction, credit issuance, halftime surge pre-computation |
+| GenAI orchestration | Provider-agnostic adapter (**Anthropic Claude** and/or **Google Gemini**, tool/function-calling enabled) | Swap providers without touching feature code; see §8 |
+| Validation | **Zod everywhere** (client forms, API boundaries, WS payloads, file uploads) | Ties directly into the "absolute input sanitization" requirement |
+| Testing | **Vitest** + **React Testing Library** (unit/component), **Playwright** (E2E), **MSW** (API mocking) | |
+| Component docs | **Storybook** | Judge/reviewer-friendly component gallery |
+| Observability | **OpenTelemetry** → **Grafana/Prometheus**, **Sentry** for error tracking | |
+| CI/CD | **GitHub Actions** (lint → typecheck → test → build → preview deploy) | |
+| Hosting | **Vercel** (frontend/edge) + **Fly.io or Railway** (stateful API/WebSocket/Postgres/Redis) | |
+| Monorepo tooling | **Turborepo + pnpm workspaces** | |
+
+---
+
+## 3. System Architecture
+
+```
+apps/
+  web/                 → Next.js App Router client (RSC + islands)
+  api/                 → Fastify service: REST/OpenAPI + tRPC + WS gateway
+packages/
+  ui/                  → shadcn-based design system, Storybook
+  pathfinding-engine/  → pure TS, framework-agnostic A*/Dijkstra core (unit-tested in isolation)
+  ai-orchestrator/      → provider adapters, prompt templates, tool schemas
+  types/               → shared Zod schemas + inferred TS types (single source of truth)
+  config/              → eslint/tsconfig/tailwind shared config
+infra/
+  docker-compose.yml   → postgres, redis, api, web for one-command local dev
+  .github/workflows/   → ci.yml, deploy.yml
+```
+
+**Data flow:**
+`Client (Next.js islands)` ⇄ `WebSocket gateway (Fastify)` ⇄ `Redis Pub/Sub (multi-instance fan-out)` ⇄ `Postgres/PostGIS (durable zone + fan state)`, with the `pathfinding-engine` and `ai-orchestrator` invoked as internal packages from the API layer — never called directly from the client.
+
+**Real-time model:** clients subscribe to a WebSocket room per stadium zone cluster. Any density update (from simulated sensors, Jury Console overrides, or fan reports) publishes to Redis, which fans out to all API instances, which push deltas only (not full state) to subscribed clients.
+
+---
+
+## 4. UI/UX Design System (enhanced)
+
+### 4.1 Design tokens
+- **Color:** base surfaces `#0F172A` / `#1E293B`; semantic — success/safe `#10B981`, danger/bottleneck `#EF4444`, warning `#F59E0B`, info `#3B82F6`, neutral text scale from `#F8FAFC` → `#64748B`. All pairings verified ≥ WCAG AA (4.5:1 body text, 3:1 large text/icons); ship a high-contrast theme that pushes key pairs toward AAA.
+- **Typography:** a variable UI font (e.g., Inter or Geist) at a modular scale (12/14/16/20/24/32/40px), with a distinct display weight reserved for AI banner headlines so they're instantly recognizable as "the AI speaking."
+- **Spacing:** 4px base unit, 8-step scale (4/8/12/16/24/32/48/64).
+- **Radius/elevation:** two radii (12px cards, 999px pills/buttons), three elevation tiers via layered shadow + glass blur (`backdrop-filter: blur(16px)` at 60–70% surface opacity).
+- **Motion tokens:** micro (120–160ms, ease-out) for taps; transition (200–280ms) for panel/drawer opens; all bound behind `prefers-reduced-motion`.
+
+### 4.2 Layout
+- Mobile: app-shell with bottom nav (5 max items: Map, Assistant, Rewards, Transit, Profile), safe-area-aware padding for dynamic Android/iOS chrome, pull-to-refresh on the map view.
+- Desktop ≥1024px: persistent collapsible sidebar, map view expands into a two-pane layout (map + contextual detail panel).
+- Both: a single shared `AppShell` component driving layout via container queries, not just breakpoints, so embedded widgets (e.g., a kiosk mode) behave correctly too.
+
+### 4.3 Core components
+`AppShell`, `BottomNav` / `Sidebar`, `StadiumMapCanvas` (SVG structure + canvas heat overlay, keyboard-focusable zone nodes with `role="button"` + `aria-label` density announcements), `AIBanner` (live-region, streaming text, dismissible, color-coded by urgency), `AssistantDrawer` (voice + text, transcript, stress/emergency state indicator), `JuryConsoleDrawer` (see §10), `CreditsWallet`, `AccessibilityToggle` (contrast + text scale + reduced motion, persisted), `SkeletonLoader` set per view, `EmptyState` and `ErrorBoundary` fallback screens (never a raw stack trace).
+
+### 4.4 Accessibility (WCAG 2.2 AA, targeting AAA where feasible)
+Full keyboard traversal of the map graph (arrow keys move focus between connected zone nodes, mirroring the pathfinding graph itself), `aria-live="assertive"` for emergency banners and `polite` for routine density updates, dynamic text scaling to 200% without layout breakage, and audio wayfinding descriptions generated from the same route object the visual UI renders (single source of truth — no separate "audio script" to fall out of sync).
+
+---
+
+## 5. Core Functional Verticals (deepened)
+
+### A. Smart Dynamic Navigation & Crowd Bottleneck Management
+- **Zone graph model:**
+```ts
+interface Zone {
+  id: string;
+  name: string;
+  type: "gate" | "concourse" | "seating" | "amenity" | "medical" | "transit";
+  capacityMax: number;
+  capacityCurrent: number;      // 0–100 derived %
+  coordinates: [number, number];
+  connections: { toZoneId: string; distanceMeters: number; hasStairs: boolean; hasElevator: boolean }[];
+  accessibility: { stepFree: boolean; elevatorNearby: boolean };
+}
+```
+- **Engine:** A* with an admissible Euclidean heuristic; edge weight = `distance × congestionMultiplier(zone.capacityCurrent)`, with congestion penalty scaling sharply above 80%. Fall back to Dijkstra automatically when a hard accessibility constraint makes the heuristic inadmissible (e.g., stairs excluded). Engine lives in `packages/pathfinding-engine`, fully unit-tested with property-based tests (fuzz random graphs, assert no crashes, assert triangle-inequality-respecting output).
+- **API:** `GET /zones`, `GET /route?from&to&stepFreeOnly`, WS topic `zone:density:update` (delta payloads only).
+- **GenAI layer:** a `explainRoute` tool call receives the *computed* route diff + zone stats as structured JSON and returns only the natural-language explanation — the numbers themselves are never AI-generated. Response streams into the `AIBanner` via SSE, token by token.
+
+### B. Context-Aware Multilingual & High-Risk Assistance
+- **NLU pipeline:** language/dialect detection → intent classification (`info_request`, `wayfinding`, `emergency`) → lightweight stress signal (keyword + punctuation/caps heuristics as a transparent fallback, upgradeable to a real classifier).
+- **Escalation state machine:** `normal → elevated → emergency`, each with a distinct banner treatment, and `emergency` auto-surfaces the nearest medical zone plus a one-tap "alert nearest steward" action, with haptic feedback (`navigator.vibrate`) on supporting devices.
+- **Privacy:** free-text input is never persisted verbatim beyond the active session; only intent/category is logged for analytics.
+
+### C. Sustainable Waste & Crowd Flow Optimization
+```ts
+interface Bin {
+  id: string; zoneId: string; capacityPct: number;
+  lastEmptiedAt: string; reportedFullBy: string[]; // hashed device/user ids
+}
+```
+- Reporting requires geofence or QR-scan proximity confirmation (anti-abuse), rate-limited per device via Redis token bucket.
+- Overflow *prediction* uses a transparent time-series heuristic (exponential smoothing on report velocity) rather than a hand-waved "AI decides" — explainable, testable, and satisfies the "zero hardcoded responses" requirement without sacrificing correctness.
+- Reward issuance is an idempotent, auditable ledger entry (BullMQ job), never a client-trusted value.
+
+### D. Last-Mile Transit & Accessibility Routing
+- Rideshare wait-time estimate modeled as a simple M/M/c queueing approximation fed by simulated Metro-exit arrival rates — swappable for a real transit API later.
+- **Step-free toggle:** filters the graph to edges where `hasStairs === false` and `hasElevator === true` is preferred; elevator nodes get a distinct icon + audio callout generated from the same route object (see §4.4).
+
+---
+
+## 6. Differentiating Features (beyond the original brief)
+- **Offline-first PWA:** last-known zone graph and density snapshot cached in IndexedDB; app is fully navigable with zero connectivity, with a clear "Offline / Last updated Xm ago" indicator — never a silent stale state.
+- **Ops Console (staff view):** live heatmap, incident queue, broadcast-message composer — reuses the Jury Console's data layer so judges can see the same override propagate to both fan and staff views simultaneously.
+- **Pre-emptive alerts:** clearly labeled as a heuristic projection ("Gate C is trending toward 85% in ~6 min based on current inflow"), not presented as a guarantee.
+- **Exit-flow simulation:** post-match staggered-exit recommendation per seating block, visualized as an animated flow diagram.
+- **Voice-first hands-free mode** for accessibility and for fans carrying children/bags.
+
+---
+
+## 7. GenAI Orchestration (§8 detail)
+
+```ts
+// packages/ai-orchestrator/provider.ts
+interface AIProvider {
+  streamNarration(input: { toolResults: ZoneSnapshot; tone: "neutral"|"reassuring"|"urgent" }): AsyncIterable<string>;
+}
+// Concrete adapters: AnthropicProvider, GeminiProvider — both implement the same interface.
+```
+- **Tool/function-calling schema**, e.g. `get_zone_stats(zoneId)`, `compute_alt_route(from, to, constraints)` — the model is only ever allowed to *call* these deterministic tools and narrate their results, never assert its own numbers.
+- **Mock mode:** when no API key is configured, a local template-based narrator (still varied via seeded randomness, not hardcoded strings) produces banner text — the "zero hardcoded responses" rule from the original brief still holds because templates are parameterized by live state.
+- **Streaming UX:** SSE token stream into `AIBanner`, with a typing-indicator skeleton before the first token.
+
+---
+
+## 8. Non-Functional Requirements
+- **Performance budgets:** LCP < 2.5s on 4G, INP < 200ms, initial JS < 170KB gzipped for the map route.
+- **Security:** Zod validation at every boundary (form, API, WS message, file upload); uploaded Jury Console JSON is size-capped, schema-validated *before* parsing, and rendered through a diff view rather than eval'd; CSP headers; rate limiting via Redis token bucket on all mutating endpoints.
+- **Testing:** unit (Vitest) for pathfinding + reducers, integration (API contract tests against the OpenAPI spec), E2E (Playwright) covering — bottleneck reroute, emergency escalation, step-free toggle, and Jury Console override propagation.
+- **Observability:** structured JSON logs, OpenTelemetry traces from client interaction → API → DB, Sentry for both frontend and backend error boundaries.
+- **i18n:** English + at least two additional languages scaffolded end-to-end (UI strings *and* AI narration tone), RTL layout verified.
+
+---
+
+## 9. Jury/Judge Console Drawer (enhanced)
+A keyboard-shortcut-revealed (not truly hidden — announced to screen readers when opened), collapsible drawer bound directly to the same Zustand/Redis-backed store as production data:
+- Sliders for per-zone capacity, instantly propagated over the same WebSocket channel real sensors would use (no special-cased "demo path").
+- Raw JSON/text upload, schema-validated with a clear diff preview before applying, and a graceful, specific error state (not a blank crash) on malformed input.
+- "Reset to live simulation" and "export current state snapshot" (for reproducible bug reports) actions.
+
+---
+
+## 10. Definition of Done
+- [ ] All four functional verticals operate correctly with **zero network/API key present** (mock mode)
+- [ ] Lighthouse: Performance ≥ 90, Accessibility ≥ 95 on the map + assistant routes
+- [ ] Playwright suite green in CI on every PR
+- [ ] No `any` types in `packages/pathfinding-engine` or `packages/types`
+- [ ] Jury Console override reflected in UI in < 300ms end-to-end
+- [ ] Full keyboard traversal of the stadium map verified manually and via automated a11y audit (axe-core in CI)
+
+---
+
+## 11. Directive to the Build Agent
+Generate the monorepo scaffold first (§3), then implement `packages/types` and `packages/pathfinding-engine` with full unit tests, then the API layer, then the UI shell and components, then wire the `ai-orchestrator` last (so the app is fully functional in mock mode before any AI dependency is introduced). Commit in small, reviewable increments. Do not stub out error states — implement the actual graceful fallback UI described in §4.3 and §9. Proceed to generate the foundational monorepo now.
