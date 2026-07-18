@@ -42,7 +42,7 @@ const frontendDistPath = path.resolve(__dirname, "../../../artifacts/vibe-stadiu
 app.use(express.static(frontendDistPath));
 
 // Handle client-side routing (single page app)
-app.get("*", (req, res, next) => {
+app.get("/*", (req, res, next) => {
   if (req.path.startsWith("/api")) {
     return next();
   }
