@@ -7,7 +7,7 @@ RUN npm install -g pnpm
 WORKDIR /app
 
 # Copy workspace configuration and lockfile
-COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml tsconfig.json tsconfig.base.json ./
 
 # Copy shared libraries
 COPY lib/api-zod ./lib/api-zod/
@@ -35,7 +35,7 @@ RUN npm install -g pnpm
 WORKDIR /app
 
 # Copy workspace configs
-COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml tsconfig.json tsconfig.base.json ./
 
 # Copy built dependencies and compiled directories from builder
 COPY --from=builder /app/node_modules ./node_modules
