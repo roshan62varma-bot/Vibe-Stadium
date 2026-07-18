@@ -15,6 +15,9 @@ COPY lib ./lib/
 # Copy API server project
 COPY artifacts/api-server ./artifacts/api-server/
 
+# Copy frontend client project
+COPY artifacts/vibe-stadium ./artifacts/vibe-stadium/
+
 # Install workspace dependencies
 RUN pnpm install --frozen-lockfile
 
