@@ -4,7 +4,12 @@ import { useGetZones, useGetRoute } from '@workspace/api-client-react';
 import { useStore } from '@/store';
 import { Card } from '@/components/ui/card';
 import { AIBanner } from '@/components/AIBanner';
-import { Navigation, AlertTriangle, ArrowRight, X, HeartPulse, Zap, Compass, ArrowUp, CheckCircle, Navigation2 } from 'lucide-react';
+import { 
+  ArrowLeft, ArrowRight, Play, Square, Compass, Eye, ShieldAlert, 
+  MapPin, Check, ChevronRight, X, AlertTriangle, AlertOctagon,
+  Zap, HelpCircle, Navigation, Info, ArrowUp, Sliders, Cpu, HeartPulse, CheckCircle
+} from 'lucide-react';
+import { useOverrideZoneCapacity } from '@workspace/api-client-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useMockSimulation } from '@/hooks/use-simulation';
 import { useTranslation } from '@/lib/translations';
@@ -74,6 +79,49 @@ export default function MapPage() {
   const [isNavigating, setIsNavigating] = useState(false);
   const [travelerProgress, setTravelerProgress] = useState(0); // 0 to 1
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
+
+  // Judge Simulation Panel states
+  const [simulateBottleneck, setSimulateBottleneck] = useState(false);
+  const [simulateEmergency, setSimulateEmergency] = useState(false);
+  const overrideMutation = useOverrideZoneCapacity();
+
+  const handleBottleneckToggle = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const checked = e.target.checked;
+    setSimulateBottleneck(checked);
+    overrideMutation.mutate({
+      zoneId: 'concourse-nw',
+      data: { capacityCurrent: checked ? 85 : 40 }
+    }, {
+      onError: (err) => {
+        console.warn("Override mutation failed (local offline fallback mode):", err);
+      }
+    });
+    toast({
+      title: checked ? "Bottleneck Injected" : "Bottleneck Cleared",
+      description: checked 
+        ? "Concourse NW congestion set to 85%. Pathfinding routes will detour."
+        : "Concourse NW congestion restored to nominal level.",
+    });
+  };
+
+  const handleEmergencyToggle = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const checked = e.target.checked;
+    setSimulateEmergency(checked);
+    overrideMutation.mutate({
+      zoneId: 'gate-e',
+      data: { capacityCurrent: checked ? 90 : 35 }
+    }, {
+      onError: (err) => {
+        console.warn("Override mutation failed (local offline fallback mode):", err);
+      }
+    });
+    toast({
+      title: checked ? "Emergency Mode Injected" : "Emergency Cleared",
+      description: checked 
+        ? "East Gate set to 90% congestion. Emergency detour activated."
+        : "Emergency state cleared.",
+    });
+  };
 
   const { data: apiZones } = useGetZones();
   
@@ -215,10 +263,22 @@ export default function MapPage() {
     }
   };
 
+  const getCapacityColorClass = (pct: number) => {
+    if (pct >= 75) return 'text-destructive';
+    if (pct >= 60) return 'text-warning';
+    return 'text-primary';
+  };
+
+  const getCapacityBgColorClass = (pct: number) => {
+    if (pct >= 75) return 'bg-destructive';
+    if (pct >= 60) return 'bg-warning';
+    return 'bg-primary';
+  };
+
   const getCapacityColor = (pct: number) => {
-    if (pct >= 75) return 'var(--destructive)';
-    if (pct >= 60) return 'var(--warning)';
-    return 'var(--primary)';
+    if (pct >= 75) return '#EF4444';
+    if (pct >= 60) return '#F59E0B';
+    return '#10B981';
   };
 
   const selectedZone = zones.find(z => z.id === selectedZoneId);
@@ -263,8 +323,36 @@ export default function MapPage() {
   return (
     <div className="flex-1 flex flex-col relative bg-[#090D16] text-white">
       {/* Decorative Grid Mesh overlay */}
-      <div className="absolute inset-0 pointer-events-none opacity-[0.03]" 
-           style={{ backgroundImage: 'linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)', backgroundSize: '30px 30px' }}>
+      <div className="absolute inset-0 pointer-events-none opacity-[0.03] bg-tech-grid-sm" />
+
+      {/* Floating Judge Control Panel */}
+      <div className="absolute top-4 right-4 z-40 flex flex-col items-end gap-2">
+        <div className="bg-card/95 border border-border backdrop-blur-xl rounded-2xl p-4 shadow-2xl space-y-3 text-start max-w-[280px]">
+          <div className="flex items-center gap-2 pb-2 border-b border-white/5">
+            <Sliders className="w-4 h-4 text-emerald-400" />
+            <span className="font-bold text-xs uppercase tracking-wider text-emerald-400">Judge Simulator</span>
+          </div>
+          <div className="space-y-2.5">
+            <label className="flex items-center justify-between text-[11px] font-semibold text-muted-foreground cursor-pointer gap-4">
+              <span>Simulate 85% Bottleneck</span>
+              <input 
+                type="checkbox" 
+                checked={simulateBottleneck}
+                onChange={handleBottleneckToggle}
+                className="rounded border-white/10 bg-background text-primary focus:ring-primary w-3.5 h-3.5"
+              />
+            </label>
+            <label className="flex items-center justify-between text-[11px] font-semibold text-muted-foreground cursor-pointer gap-4">
+              <span>Simulate Exit Emergency</span>
+              <input 
+                type="checkbox" 
+                checked={simulateEmergency}
+                onChange={handleEmergencyToggle}
+                className="rounded border-white/10 bg-background text-primary focus:ring-primary w-3.5 h-3.5"
+              />
+            </label>
+          </div>
+        </div>
       </div>
 
       {/* Floating Active Navigation Dashboard Overlay (Time required to reach & direction arrows) */}
@@ -400,7 +488,7 @@ export default function MapPage() {
           {/* Pitch / Arena Center (Futuristic Markings) */}
           <g opacity="0.65">
             {/* Outer boundary */}
-            <rect x="290" y="220" width="220" height="180" rx="15" fill="url(#pitch-grad)" stroke="rgba(16,185,129,0.25)" strokeWidth="2.5" style={{ filter: 'url(#glow-emerald)' }} />
+            <rect x="290" y="220" width="220" height="180" rx="15" fill="url(#pitch-grad)" stroke="rgba(16,185,129,0.25)" strokeWidth="2.5" filter="url(#glow-emerald)" />
             {/* Midfield line */}
             <line x1="400" y1="220" x2="400" y2="400" stroke="rgba(16,185,129,0.2)" strokeWidth="2" />
             {/* Midfield circle */}
@@ -413,7 +501,7 @@ export default function MapPage() {
             <rect x="470" y="270" width="40" height="80" fill="none" stroke="rgba(16,185,129,0.2)" strokeWidth="1.5" />
             <path d="M 470 295 A 20 20 0 0 0 470 325" fill="none" stroke="rgba(16,185,129,0.2)" strokeWidth="1.5" />
           </g>
-          <text x="400" y="314" fill="rgba(16,185,129,0.2)" fontSize="18" textAnchor="middle" dominantBaseline="middle" fontWeight="900" letterSpacing="10" style={{ pointerEvents: 'none' }}>
+          <text x="400" y="314" fill="rgba(16,185,129,0.2)" fontSize="18" textAnchor="middle" dominantBaseline="middle" fontWeight="900" letterSpacing="10" pointerEvents="none">
             {language === 'ar' ? 'الملعب' : language === 'es' ? 'CAMPO' : language === 'fr' ? 'TERRAIN' : language === 'pt' ? 'CAMPO' : 'PITCH'}
           </text>
 
@@ -435,7 +523,7 @@ export default function MapPage() {
                   opacity={conn.hasStairs ? 0.35 : 0.15}
                   strokeDasharray={conn.hasStairs ? '6 4' : undefined}
                   className={cn(conn.hasStairs ? "animate-[pulse_1.5s_infinite]" : "")}
-                  style={{ filter: conn.hasStairs ? 'url(#glow-gold)' : 'url(#glow-cyan)' }}
+                  filter={conn.hasStairs ? 'url(#glow-gold)' : 'url(#glow-cyan)'}
                 />
               );
             })
@@ -455,10 +543,11 @@ export default function MapPage() {
                   y1={z.coordinates[1]}
                   x2={next.coordinates[0]}
                   y2={next.coordinates[1]}
-                  stroke="url(#route-grad)"
+                  stroke="#10B981"
                   strokeWidth="5"
                   strokeLinecap="round"
-                  style={{ filter: `drop-shadow(0 0 10px ${isNavigating ? "#10B981" : "#3B82F6"})` }}
+                  className="animate-path-dash"
+                  filter="url(#glow-emerald)"
                 />
               );
             })
@@ -490,7 +579,7 @@ export default function MapPage() {
                 fill="#10B981" 
                 stroke="#fff" 
                 strokeWidth="1.5"
-                style={{ filter: 'drop-shadow(0 0 8px rgba(16,185,129,0.9))' }}
+                filter="url(#glow-emerald)"
               />
             </g>
           )}
@@ -522,19 +611,28 @@ export default function MapPage() {
                     strokeDasharray="4 3"
                     animate={{ rotate: 360 }}
                     transition={{ duration: 10, repeat: Infinity, ease: "linear" }}
-                    style={{ filter: `drop-shadow(0 0 6px ${capColor})` }}
+                    filter={zone.capacityCurrent >= 75 ? "url(#glow-red)" : "url(#glow-cyan)"}
                   />
                 )}
 
-                {/* Pulsing bottleneck alert */}
+                {/* Pulsing bottleneck alert - High-intensity flashing crimson warning */}
                 {zone.capacityCurrent >= 75 && (
-                  <circle
-                    r={R + 6}
-                    fill="none"
-                    stroke="#EF4444"
-                    strokeWidth="2"
-                    className="animate-ping opacity-60"
-                  />
+                  <>
+                    <circle
+                      r={R + 10}
+                      fill="none"
+                      stroke="#EF4444"
+                      strokeWidth="3.5"
+                      className="animate-ping opacity-90"
+                    />
+                    <circle
+                      r={R + 4}
+                      fill="none"
+                      stroke="#EF4444"
+                      strokeWidth="2"
+                      className="animate-[pulse_1s_infinite] opacity-80"
+                    />
+                  </>
                 )}
 
                 {/* Outermost beacon ring */}
@@ -544,7 +642,7 @@ export default function MapPage() {
                   stroke={isSelected ? "#FFFFFF" : capColor}
                   strokeWidth={isSelected ? 3 : 2}
                   className="transition-all hover:scale-115"
-                  style={{ filter: `drop-shadow(0 0 8px ${capColor})` }}
+                  filter={zone.capacityCurrent >= 75 ? "url(#glow-red)" : isSelected ? "url(#glow-emerald)" : "url(#glow-cyan)"}
                 />
 
                 {/* Fill ratio density indicator */}
@@ -578,7 +676,7 @@ export default function MapPage() {
                     fill="rgba(15, 23, 42, 0.85)"
                     stroke={capColor}
                     strokeWidth="1"
-                    style={{ pointerEvents: 'none' }}
+                    pointerEvents="none"
                   />
                   <text
                     y="1"
@@ -588,7 +686,7 @@ export default function MapPage() {
                     textAnchor="middle"
                     dominantBaseline="middle"
                     fontWeight="bold"
-                    style={{ pointerEvents: 'none' }}
+                    pointerEvents="none"
                   >
                     {Math.round(zone.capacityCurrent)}%
                   </text>
@@ -601,8 +699,7 @@ export default function MapPage() {
                   fontSize="9.5"
                   textAnchor="middle"
                   fontWeight={isSelected ? '900' : '600'}
-                  className="select-none pointer-events-none"
-                  style={{ textShadow: '0 2px 4px rgba(0,0,0,0.8)' }}
+                  className="select-none pointer-events-none drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]"
                 >
                   {zone.name}
                 </text>
@@ -768,17 +865,16 @@ export default function MapPage() {
                       <div className="bg-background rounded-xl p-3 border border-border">
                         <div className="text-sm text-muted-foreground mb-1">{t('map.legend').split(' ')[0]}</div>
                         <div className="flex items-baseline gap-2">
-                          <span className="text-2xl font-bold" style={{ color: getCapacityColor(selectedZone.capacityCurrent) }}>
+                          <span className={cn("text-2xl font-bold", getCapacityColorClass(selectedZone.capacityCurrent))}>
                             {Math.round(selectedZone.capacityCurrent)}%
                           </span>
                         </div>
                         {/* Density bar */}
                         <div className="h-1.5 w-full bg-white/10 rounded-full mt-2 overflow-hidden">
                           <div 
-                            className="h-full rounded-full" 
+                            className={cn("h-full rounded-full", getCapacityBgColorClass(selectedZone.capacityCurrent))} 
                             style={{ 
-                              width: `${selectedZone.capacityCurrent}%`,
-                              backgroundColor: getCapacityColor(selectedZone.capacityCurrent)
+                              width: `${selectedZone.capacityCurrent}%`
                             }} 
                           />
                         </div>

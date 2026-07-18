@@ -98,8 +98,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div 
       dir={typography.direction} 
-      className="flex h-[100dvh] w-full bg-background text-foreground overflow-hidden"
-      style={{ fontFamily: typography.fontFamily, letterSpacing: typography.letterSpacing }}
+      className={cn("flex h-[100dvh] w-full bg-background text-foreground overflow-hidden", `lang-${language}`)}
     >
       {/* Desktop Sidebar */}
       <aside className={cn(
@@ -158,7 +157,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <Globe className="w-4 h-4 text-primary" />
                 <span>{currentLangObj.flag} {currentLangObj.label}</span>
               </div>
-              <ChevronDown className="w-3.5 h-3.5 transition-transform" style={{ transform: langDropdownOpen ? 'rotate(180deg)' : 'none' }} />
+              <ChevronDown className={cn("w-3.5 h-3.5 transition-transform duration-200", langDropdownOpen ? "rotate-180" : "")} />
             </button>
             
             {langDropdownOpen && (

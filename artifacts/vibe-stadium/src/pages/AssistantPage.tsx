@@ -51,6 +51,14 @@ export default function AssistantPage() {
     timestamp: string;
   } | null>(null);
 
+  // Dynamic AI context reasoning analyzer state
+  const [activeAnalysis, setActiveAnalysis] = useState<{
+    query: string;
+    intent: string;
+    urgency: string;
+    keywords: string[];
+  } | null>(null);
+
   // CC Captions state for TTS
   const [closedCaptionText, setClosedCaptionText] = useState<string | null>(null);
 
@@ -133,6 +141,26 @@ export default function AssistantPage() {
 
     // Trigger local structural reasoning engine
     const engineResult = handleReasoningEngine(query, zones || [], language);
+
+    // Compute dynamic context analysis mapping
+    const lowercaseQuery = query.toLowerCase();
+    const keywords: string[] = [];
+    if (lowercaseQuery.includes("help") || lowercaseQuery.includes("medical") || lowercaseQuery.includes("hurt") || lowercaseQuery.includes("leg")) keywords.push("medical", "emergency");
+    if (lowercaseQuery.includes("washroom") || lowercaseQuery.includes("toilet") || lowercaseQuery.includes("restroom")) keywords.push("washroom", "sanitation");
+    if (lowercaseQuery.includes("food") || lowercaseQuery.includes("eat") || lowercaseQuery.includes("hungry")) keywords.push("food", "dining");
+
+    let detectedIntent = "General Navigation";
+    if (engineResult.isEmergency) detectedIntent = "Emergency Assistance";
+    else if (lowercaseQuery.includes("washroom") || lowercaseQuery.includes("toilet")) detectedIntent = "Sanitation Search";
+    else if (lowercaseQuery.includes("food") || lowercaseQuery.includes("eat")) detectedIntent = "Dining Area Search";
+    else if (!engineResult.matches) detectedIntent = "Model Fallback Query";
+
+    setActiveAnalysis({
+      query,
+      intent: detectedIntent,
+      urgency: engineResult.isEmergency ? "CRITICAL (Level 1)" : "NOMINAL (Level 0)",
+      keywords: keywords.length > 0 ? keywords : ["navigation", "general"]
+    });
 
     if (engineResult.matches) {
       setTimeout(() => {
@@ -238,10 +266,7 @@ export default function AssistantPage() {
 
   return (
     <div className="flex-1 flex flex-col h-full bg-[#090D16] text-white relative overflow-hidden">
-      {/* Decorative tech background */}
-      <div className="absolute inset-0 pointer-events-none opacity-[0.02]" 
-           style={{ backgroundImage: 'linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)', backgroundSize: '40px 40px' }}>
-      </div>
+      <div className="absolute inset-0 pointer-events-none opacity-[0.02] bg-tech-grid" />
 
       {/* Header bar */}
       <div className="p-4 md:p-6 border-b border-white/5 bg-[#0D1424]/85 backdrop-blur-md flex items-center justify-between z-10">
@@ -369,6 +394,37 @@ export default function AssistantPage() {
 
       {/* Messages Stream */}
       <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6 z-10">
+        {/* Dynamic Context Evaluator Panel (AI Reasoning Visualizer) */}
+        {activeAnalysis && (
+          <div className="p-4 rounded-xl border border-emerald-500/20 bg-emerald-950/10 text-xs text-start space-y-3 shadow-md">
+            <div className="flex items-center justify-between border-b border-white/5 pb-2">
+              <span className="font-bold text-emerald-400 flex items-center gap-1.5 uppercase tracking-wider">
+                <Cpu className="w-3.5 h-3.5" /> Intent Classification Engine
+              </span>
+              <span className="px-2 py-0.5 rounded bg-white/5 border border-white/10 text-[9px] font-mono text-muted-foreground uppercase">
+                Dynamic Evaluator
+              </span>
+            </div>
+            <div className="grid grid-cols-2 gap-3 text-muted-foreground">
+              <div>
+                <span className="block text-[9px] uppercase tracking-wider font-semibold">Analyzed Query:</span>
+                <span className="text-white font-medium">"{activeAnalysis.query}"</span>
+              </div>
+              <div>
+                <span className="block text-[9px] uppercase tracking-wider font-semibold">Detected Intent:</span>
+                <span className="text-white font-black">{activeAnalysis.intent}</span>
+              </div>
+              <div>
+                <span className="block text-[9px] uppercase tracking-wider font-semibold">Urgency Level:</span>
+                <span className="text-white font-medium">{activeAnalysis.urgency}</span>
+              </div>
+              <div>
+                <span className="block text-[9px] uppercase tracking-wider font-semibold">Context Keywords:</span>
+                <span className="text-white font-mono">{activeAnalysis.keywords.join(", ")}</span>
+              </div>
+            </div>
+          </div>
+        )}
         {messages.map((msg, i) => (
           <div 
             key={i} 
@@ -393,9 +449,9 @@ export default function AssistantPage() {
               {msg.isTyping ? (
                 // Realistic Animated Skeletal Typing bubble
                 <div className="flex gap-2 items-center py-2 px-1">
-                  <div className="h-2 w-2 rounded-full bg-emerald-400 animate-bounce" style={{ animationDelay: '0ms' }} />
-                  <div className="h-2 w-2 rounded-full bg-emerald-400 animate-bounce" style={{ animationDelay: '150ms' }} />
-                  <div className="h-2 w-2 rounded-full bg-emerald-400 animate-bounce" style={{ animationDelay: '300ms' }} />
+                  <div className="h-2 w-2 rounded-full bg-emerald-400 animate-bounce anim-delay-0" />
+                  <div className="h-2 w-2 rounded-full bg-emerald-400 animate-bounce anim-delay-150" />
+                  <div className="h-2 w-2 rounded-full bg-emerald-400 animate-bounce anim-delay-300" />
                   <span className="text-[10px] text-muted-foreground ml-2 animate-pulse uppercase tracking-wider font-bold">Vibe Core Reasoning...</span>
                 </div>
               ) : (

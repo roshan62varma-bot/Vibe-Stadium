@@ -26,8 +26,8 @@ export default function TransitPage() {
   const { data: apiTransit, isLoading: isLoadingTransit, refetch } = useGetTransit();
   const { data: apiExit, isLoading: isLoadingExit } = useGetExitPlan();
 
-  const transit = apiTransit || MOCK_TRANSIT;
-  const exitPlan = apiExit || MOCK_EXIT;
+  const transit = useMemo(() => apiTransit || MOCK_TRANSIT, [apiTransit]);
+  const exitPlan = useMemo(() => apiExit || MOCK_EXIT, [apiExit]);
 
   const getTypeIcon = (type: string) => {
     switch(type) {
@@ -242,10 +242,12 @@ export default function TransitPage() {
                         </div>
                         <div className="flex-1 sm:w-32 h-2 bg-black/40 rounded-full overflow-hidden border border-white/5 shrink-0">
                           <div 
-                            className="h-full rounded-full transition-all duration-1000"
+                            className={cn(
+                              "h-full rounded-full transition-all duration-1000",
+                              slot.estimatedCrowdPct > 70 ? "bg-destructive" : slot.estimatedCrowdPct > 40 ? "bg-warning" : "bg-primary"
+                            )}
                             style={{ 
-                              width: `${slot.estimatedCrowdPct}%`,
-                              backgroundColor: slot.estimatedCrowdPct > 70 ? 'var(--destructive)' : slot.estimatedCrowdPct > 40 ? 'var(--warning)' : 'var(--primary)'
+                              width: `${slot.estimatedCrowdPct}%`
                             }}
                           />
                         </div>

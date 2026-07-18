@@ -285,3 +285,60 @@
   color: #ffff00 !important;
 }
 
+/* Language Typography Classes (Zero Inline Styles) */
+.lang-en {
+  font-family: 'Outfit', 'Inter', system-ui, sans-serif !important;
+  letter-spacing: -0.01em !important;
+}
+.lang-es {
+  font-family: 'Inter', system-ui, sans-serif !important;
+  letter-spacing: -0.005em !important;
+}
+.lang-fr {
+  font-family: 'Outfit', 'Inter', system-ui, sans-serif !important;
+  letter-spacing: -0.015em !important;
+}
+.lang-pt {
+  font-family: 'Inter', system-ui, sans-serif !important;
+  letter-spacing: 0em !important;
+}
+.lang-ar {
+  font-family: 'Cairo', 'Amiri', system-ui, sans-serif !important;
+  letter-spacing: 0em !important;
+}
+
+/* Glowing electric green navigation path dash animation */
+@keyframes path-dash {
+  to {
+    stroke-dashoffset: -20;
+  }
+}
+.animate-path-dash {
+  stroke-dasharray: 8 6;
+  animation: path-dash 1.2s linear infinite;
+}
+
+/* Custom background tech grid */
+.bg-tech-grid {
+  background-image: linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+.bg-tech-grid-sm {
+  background-image: linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px);
+  background-size: 30px 30px;
+}
+
+/* Animation delay utility classes */
+.anim-delay-0 {
+  animation-delay: 0ms !important;
+}
+.anim-delay-150 {
+  animation-delay: 150ms !important;
+}
+.anim-delay-300 {
+  animation-delay: 300ms !important;
+}
+
+
+

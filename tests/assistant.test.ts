@@ -62,4 +62,19 @@ describe("Assistant Intent Classification & Routing Tests", () => {
     expect(res.text).toContain("Food & Merch West");
     expect(res.text).toContain("33% density");
   });
+
+  it("should handle extremely long queries under high stress and return correct structural objects", () => {
+    const longQuery = "Need medical help ".repeat(500); // 9000 chars
+    const res = handleReasoningEngine(longQuery, mockZones, "en");
+    expect(res).toHaveProperty("matches");
+    expect(res).toHaveProperty("text");
+    expect(res).toHaveProperty("isEmergency");
+    expect(res.isEmergency).toBe(true);
+  });
+
+  it("should handle empty or completely arbitrary strings without crashing", () => {
+    const res = handleReasoningEngine("!!! @@@ ### $$$", mockZones, "en");
+    expect(res.matches).toBe(false);
+    expect(res.isEmergency).toBe(false);
+  });
 });
