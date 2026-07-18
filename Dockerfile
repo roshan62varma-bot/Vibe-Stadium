@@ -28,7 +28,7 @@ RUN pnpm run typecheck:libs
 RUN pnpm --filter @workspace/api-server run build
 
 # Build the frontend client
-RUN pnpm --filter @workspace/vibe-stadium run build
+RUN PORT=8080 BASE_PATH=/ pnpm --filter @workspace/vibe-stadium run build
 
 # Production runtime stage
 FROM node:20-slim
