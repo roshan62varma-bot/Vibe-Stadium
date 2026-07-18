@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNarrateRoute, useGetZones } from '@workspace/api-client-react';
+import { useLocation } from 'wouter';
 import { useToast } from '@/hooks/use-toast';
 import { sanitizeAndValidateInput, handleReasoningEngine } from '@/lib/assistantEngine';
 import { Send, Mic, Cpu, Zap, Activity, AlertOctagon, X, PhoneCall, HeartPulse, Navigation, Volume2 } from 'lucide-react';
@@ -28,6 +29,7 @@ export default function AssistantPage() {
   const { t, isRtl, language } = useTranslation();
   const { screenReaderSynthesis } = useStore();
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
   
   const initialSystemMessage = language === 'ar' 
     ? 'أنظمة الملعب متصلة بالكامل. كيف يمكنني مساعدتك؟' 
@@ -344,6 +346,15 @@ export default function AssistantPage() {
                   >
                     <PhoneCall className="w-3.5 h-3.5" /> Call Dispatch
                   </a>
+                  <button 
+                    onClick={() => {
+                      localStorage.setItem('pending_route', JSON.stringify({ from: 'concourse-nw', to: 'medical-zone' }));
+                      setLocation('/');
+                    }}
+                    className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-4 py-2.5 rounded-lg transition-all border border-emerald-500/20"
+                  >
+                    <Navigation className="w-3.5 h-3.5 animate-pulse" /> View Detour Route
+                  </button>
                   <button 
                     onClick={() => setActiveEmergency(null)}
                     className="bg-white/5 hover:bg-white/10 text-white text-xs font-bold px-4 py-2.5 rounded-lg transition-all border border-white/10"

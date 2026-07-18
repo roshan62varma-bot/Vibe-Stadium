@@ -74,6 +74,24 @@ export default function MapPage() {
 
   const [selectedZoneId, setSelectedZoneId] = useState<string | null>(null);
   const [routingMode, setRoutingMode] = useState<{from: string, to: string | null} | null>(null);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const pending = localStorage.getItem('pending_route');
+      if (pending) {
+        try {
+          const { from, to } = JSON.parse(pending);
+          setRoutingMode({ from, to });
+          setSelectedZoneId(null);
+          setIsNavigating(true);
+        } catch (e) {
+          // Safe fallback
+        } finally {
+          localStorage.removeItem('pending_route');
+        }
+      }
+    }
+  }, []);
   
   // Navigation Prototype States
   const [isNavigating, setIsNavigating] = useState(false);

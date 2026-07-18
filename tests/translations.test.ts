@@ -41,4 +41,16 @@ describe("Multi-Language Typography & Layout Direction Tests", () => {
     expect(tokens.fontFamily).toContain("Amiri");
     expect(tokens.letterSpacing).toBe("normal");
   });
+
+  it("should handle empty or completely invalid language strings gracefully by falling back to English LTR", () => {
+    const tokensInvalid = getTypographyTokens("invalid-lang-code");
+    expect(tokensInvalid.direction).toBe("ltr");
+    expect(tokensInvalid.fontFamily).toContain("Inter");
+
+    const tokensEmpty = getTypographyTokens("");
+    expect(tokensEmpty.direction).toBe("ltr");
+    
+    const tokensLong = getTypographyTokens("a".repeat(1000));
+    expect(tokensLong.direction).toBe("ltr");
+  });
 });

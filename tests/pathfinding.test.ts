@@ -76,4 +76,24 @@ describe("A* Pathfinding Detour Engine Tests", () => {
     const pathIds = result!.steps.map(s => s.zoneId);
     expect(pathIds).toEqual(["zone-d", "zone-c"]);
   });
+
+  it("should handle empty or invalid starting/ending zone IDs by returning null instead of throwing", () => {
+    const zones = createMockZones(10);
+    const res1 = computeRoute(zones, "", "zone-c", false);
+    expect(res1).toBeNull();
+    
+    const res2 = computeRoute(zones, "zone-a", "", false);
+    expect(res2).toBeNull();
+
+    const res3 = computeRoute(zones, "invalid-zone-1", "invalid-zone-2", false);
+    expect(res3).toBeNull();
+
+    const res4 = computeRoute(zones, "a".repeat(1000), "b".repeat(1000), false);
+    expect(res4).toBeNull();
+  });
+
+  it("should handle completely empty zone graphs gracefully", () => {
+    const res = computeRoute([], "zone-a", "zone-c", false);
+    expect(res).toBeNull();
+  });
 });
