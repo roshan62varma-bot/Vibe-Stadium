@@ -1,0 +1,50 @@
+# Use Node.js base image
+FROM node:20-slim AS builder
+
+# Install pnpm globally
+RUN npm install -g pnpm
+
+WORKDIR /app
+
+# Copy workspace configuration and lockfile
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
+
+# Copy shared libraries
+COPY lib/api-zod ./lib/api-zod/
+COPY lib/db ./lib/db/
+COPY lib/api-spec ./lib/api-spec/
+
+# Copy API server project
+COPY artifacts/api-server ./artifacts/api-server/
+
+# Install workspace dependencies
+RUN pnpm install --frozen-lockfile
+
+# Build shared libraries
+RUN pnpm run typecheck:libs
+
+# Build the API server
+RUN pnpm --filter @workspace/api-server run build
+
+# Production runtime stage
+FROM node:20-slim
+
+# Install pnpm globally
+RUN npm install -g pnpm
+
+WORKDIR /app
+
+# Copy workspace configs
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
+
+# Copy built dependencies and compiled directories from builder
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/lib/api-zod ./lib/api-zod
+COPY --from=builder /app/lib/db ./lib/db
+COPY --from=builder /app/artifacts/api-server ./artifacts/api-server
+
+# Cloud Run automatically sets and uses the PORT environment variable (defaulting to 8080)
+EXPOSE 8080
+
+# Start the Express API server
+CMD ["pnpm", "--filter", "@workspace/api-server", "run", "start"]
