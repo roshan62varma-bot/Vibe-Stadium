@@ -72,7 +72,7 @@ export default function TransitPage() {
       
       if (diffMins > 0) {
         return {
-          countdown: `Leaves in ${diffMins} min${diffMins > 1 ? 's' : ''}`,
+          countdown: `Leaves in ${diffMins} mins`,
           timeLabel: `Depart at ${timeLabel}`,
           isPast: false,
           isCurrent: true
@@ -216,12 +216,12 @@ export default function TransitPage() {
                     {/* Timeline Row Content Card */}
                     <div className="flex-grow pb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/5 group-last:border-b-0">
                       <div className="space-y-1">
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
                           <span className="font-black text-lg text-white">{slot.block}</span>
                           
                           {/* Live Countdown Timer Badge */}
                           <span className={cn(
-                            "px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider border",
+                            "px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider border whitespace-nowrap",
                             isPast ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" :
                             isCurrent ? "bg-blue-500/10 text-blue-400 border-blue-500/20 shadow-[0_0_8px_rgba(59,130,246,0.2)]" :
                             "bg-white/5 text-muted-foreground border-white/10"
@@ -230,7 +230,7 @@ export default function TransitPage() {
                           </span>
                         </div>
                         
-                        <div className="text-xs text-muted-foreground font-semibold flex items-center gap-1.5">
+                        <div className="text-xs text-muted-foreground font-semibold flex flex-wrap items-center gap-1.5">
                           {formatted.timeLabel} • Gate: <span className="text-gray-200 font-bold">{slot.gateName}</span>
                         </div>
                       </div>

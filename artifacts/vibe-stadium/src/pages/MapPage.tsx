@@ -1,4 +1,5 @@
 import React, { useMemo, useState, useEffect } from 'react';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { useGetZones, useGetRoute } from '@workspace/api-client-react';
 import { useStore } from '@/store';
 import { Card } from '@/components/ui/card';
@@ -351,8 +352,9 @@ export default function MapPage() {
 
       {/* SVG Map Layout Area */}
       <div className="flex-1 relative overflow-hidden flex items-center justify-center p-4 min-h-[350px]">
-        {/* SVG Viewport */}
-        <svg viewBox="0 0 800 620" className="w-full h-auto max-w-3xl aspect-[800/620] drop-shadow-2xl overflow-visible">
+        <ErrorBoundary fallbackTitle="Stadium Interactive Map Offline">
+          {/* SVG Viewport */}
+          <svg viewBox="0 0 800 620" className="w-full h-auto max-w-3xl aspect-[800/620] drop-shadow-2xl overflow-visible">
           <defs>
             {/* Neon Glow Filters */}
             <filter id="glow-emerald" x="-20%" y="-20%" width="140%" height="140%">
@@ -608,6 +610,7 @@ export default function MapPage() {
             );
           })}
         </svg>
+        </ErrorBoundary>
       </div>
 
       {/* Bottom Sheet Details sheet */}

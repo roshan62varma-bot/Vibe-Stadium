@@ -15,6 +15,7 @@ import OpsPage from '@/pages/OpsPage';
 import AuthPage from '@/pages/AuthPage';
 import ProfilePage from '@/pages/ProfilePage';
 import { setAuthTokenGetter } from '@workspace/api-client-react';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 
 // Configure the token getter globally for custom fetch request headers
 setAuthTokenGetter(() => localStorage.getItem('token'));
@@ -34,10 +35,26 @@ function Router() {
   return (
     <AppShell>
       <Switch>
-        <Route path="/" component={MapPage} />
-        <Route path="/assistant" component={AssistantPage} />
-        <Route path="/rewards" component={RewardsPage} />
-        <Route path="/transit" component={TransitPage} />
+        <Route path="/">
+          <ErrorBoundary fallbackTitle="Interactive Map Offline">
+            <MapPage />
+          </ErrorBoundary>
+        </Route>
+        <Route path="/assistant">
+          <ErrorBoundary fallbackTitle="AI Companion Chat Offline">
+            <AssistantPage />
+          </ErrorBoundary>
+        </Route>
+        <Route path="/rewards">
+          <ErrorBoundary fallbackTitle="Rewards Wallet Offline">
+            <RewardsPage />
+          </ErrorBoundary>
+        </Route>
+        <Route path="/transit">
+          <ErrorBoundary fallbackTitle="Transit Timelines Offline">
+            <TransitPage />
+          </ErrorBoundary>
+        </Route>
         <Route path="/ops" component={OpsPage} />
         <Route path="/auth" component={AuthPage} />
         <Route path="/profile/:userId?" component={ProfilePage} />

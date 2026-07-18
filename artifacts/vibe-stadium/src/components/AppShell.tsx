@@ -4,7 +4,7 @@ import { Map, MessageSquare, Ticket, Bus, Activity, LogOut, User as UserIcon, Lo
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { useStore } from '@/store';
-import { useTranslation, Language } from '@/lib/translations';
+import { useTranslation, Language, getTypographyTokens } from '@/lib/translations';
 import { useToast } from '@/hooks/use-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -63,6 +63,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     }
   }, [textMagnified, colorContrastBoosted]);
 
+  const typography = getTypographyTokens(language);
+
+  // Sync HTML page layout direction dynamically (RTL for Arabic, LTR for others)
+  useEffect(() => {
+    if (typeof document !== 'undefined') {
+      document.documentElement.dir = isRtl ? 'rtl' : 'ltr';
+      document.documentElement.lang = language;
+    }
+  }, [isRtl, language]);
+
   const handleLogout = () => {
     setAuth(null, null);
     toast({
@@ -87,8 +97,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div 
-      dir={isRtl ? 'rtl' : 'ltr'} 
-      className="flex h-[100dvh] w-full bg-background text-foreground overflow-hidden font-sans"
+      dir={typography.direction} 
+      className="flex h-[100dvh] w-full bg-background text-foreground overflow-hidden"
+      style={{ fontFamily: typography.fontFamily, letterSpacing: typography.letterSpacing }}
     >
       {/* Desktop Sidebar */}
       <aside className={cn(

@@ -552,3 +552,57 @@ export function useTranslation() {
     isRtl: lang === "ar"
   };
 }
+
+export interface TypographyTokens {
+  fontFamily: string;
+  letterSpacing: string;
+  fontWeightNormal: string;
+  fontWeightBold: string;
+  direction: "ltr" | "rtl";
+}
+
+export function getTypographyTokens(lang: Language): TypographyTokens {
+  switch (lang) {
+    case 'ar':
+      return {
+        fontFamily: "'Cairo', 'Amiri', system-ui, sans-serif",
+        letterSpacing: "normal",
+        fontWeightNormal: "400",
+        fontWeightBold: "700",
+        direction: "rtl"
+      };
+    case 'fr':
+      return {
+        fontFamily: "'Outfit', 'Helvetica Neue', sans-serif",
+        letterSpacing: "-0.01em",
+        fontWeightNormal: "400",
+        fontWeightBold: "600",
+        direction: "ltr"
+      };
+    case 'es':
+      return {
+        fontFamily: "'Outfit', 'Arial', sans-serif",
+        letterSpacing: "0.01em",
+        fontWeightNormal: "400",
+        fontWeightBold: "700",
+        direction: "ltr"
+      };
+    case 'pt':
+      return {
+        fontFamily: "'Outfit', 'Segoe UI', sans-serif",
+        letterSpacing: "0px",
+        fontWeightNormal: "400",
+        fontWeightBold: "600",
+        direction: "ltr"
+      };
+    case 'en':
+    default:
+      return {
+        fontFamily: "'Outfit', 'Inter', sans-serif",
+        letterSpacing: "-0.02em",
+        fontWeightNormal: "400",
+        fontWeightBold: "700",
+        direction: "ltr"
+      };
+  }
+}
