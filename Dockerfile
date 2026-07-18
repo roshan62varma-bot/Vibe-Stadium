@@ -10,9 +10,7 @@ WORKDIR /app
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml tsconfig.json tsconfig.base.json ./
 
 # Copy shared libraries
-COPY lib/api-zod ./lib/api-zod/
-COPY lib/db ./lib/db/
-COPY lib/api-spec ./lib/api-spec/
+COPY lib ./lib/
 
 # Copy API server project
 COPY artifacts/api-server ./artifacts/api-server/
@@ -39,8 +37,7 @@ COPY package.json pnpm-workspace.yaml pnpm-lock.yaml tsconfig.json tsconfig.base
 
 # Copy built dependencies and compiled directories from builder
 COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/lib/api-zod ./lib/api-zod
-COPY --from=builder /app/lib/db ./lib/db
+COPY --from=builder /app/lib ./lib
 COPY --from=builder /app/artifacts/api-server ./artifacts/api-server
 
 # Cloud Run automatically sets and uses the PORT environment variable (defaulting to 8080)
